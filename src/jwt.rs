@@ -8,13 +8,14 @@ use std::{
 };
 use url::Url;
 
-struct AuthorisedKey {
-    id: String,
-    service_account_id: String,
-    created_at: DateTime<Utc>,
-    key_algoruthm: String,
-    public_key: String,
-    private_key: String,
+#[derive(Deserialize)]
+pub struct AuthorisedKey {
+    pub id: String,
+    pub service_account_id: String,
+    pub created_at: DateTime<Utc>,
+    pub key_algorithm: String,
+    pub public_key: String,
+    pub private_key: String,
 }
 
 impl AuthorisedKey {
@@ -24,6 +25,7 @@ impl AuthorisedKey {
                 .lines()
                 .skip(1)
                 .collect::<Vec<_>>()
+                .join("\n")
                 .as_bytes(),
         )
         .expect("failed to read encoding key")
@@ -40,19 +42,19 @@ impl Claims {
             .unwrap()
             .as_secs();
 
-        let exp = iat + chrono::Duration::minutes(30);
+        let exp = iat + (chrono::Duration::minutes(30).as_seconds_f64()) as u64;
 
         Self {
             exp: exp,
             iat: iat,
             aud: aud.to_owned(),
-            iss: KEY.service_account_id,
+            iss: KEY.service_account_id.clone(),
         }
     }
 
     pub fn encode(&self) -> Result<String, SDKError> {
         let mut header = Header::new(Algorithm::PS256);
-        header.kid = Some(KEY.id);
+        header.kid = Some(KEY.id.clone());
 
         encode(&header, &self, &KEY.encoding()).map_err(|e| {
             tracing::error!("Token generation failed: {e:?}");
@@ -74,4 +76,9 @@ pub struct Claims {
     iss: String,
     exp: u64,
     iat: u64,
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct IamPayload {
+    pub jwt: String,
 }
