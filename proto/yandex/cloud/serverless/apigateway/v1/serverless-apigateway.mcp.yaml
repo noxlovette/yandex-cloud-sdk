@@ -1,0 +1,16 @@
+services:
+  - name: ApiGatewayService
+    tools:
+      - method: Get
+      - method: List
+      - method: Create
+      - method: Update
+      - method: Delete
+      - method: AddDomain
+      - method: RemoveDomain
+      - method: GetOpenapiSpec
+      - method: ListOperations
+      - method: ListAccessBindings
+      - method: SetAccessBindings
+        disabled: true
+      - method: UpdateAccessBindings

@@ -1,0 +1,126 @@
+resources_and_data_sources:
+  - name: yandex_organization_manager_mfa_enforcement
+    rename: yandex_organizationmanager_mfa_enforcement
+  - name: yandex_organization_manager_user_ssh_key
+    rename: yandex_organizationmanager_user_ssh_key
+  - name: yandex_organization_manager_idp_user
+    rename: yandex_organizationmanager_idp_user
+  - name: yandex_organization_manager_idp_userpool
+    rename: yandex_organizationmanager_idp_userpool
+  - name: yandex_organization_manager_idp_application_oauth_application
+    rename: yandex_organizationmanager_idp_application_oauth_application
+  - name: yandex_organization_manager_idp_application_saml_application
+    rename: yandex_organizationmanager_idp_application_saml_application
+  - name: yandex_organization_manager_idp_application_saml_signature_certificate
+    rename: yandex_organizationmanager_idp_application_saml_signature_certificate
+
+resources:
+  - name: yandex_organization_manager_group
+    rename: yandex_organizationmanager_group
+  - name: yandex_organization_manager_idp_userpool_domain
+    rename: yandex_organizationmanager_idp_userpool_domain
+
+iam_members:
+  - name: yandex_organization_manager_organization
+    rename: yandex_organizationmanager_organization
+  - name: yandex_organization_manager_group
+    rename: yandex_organizationmanager_group
+
+iam_bindings:
+  - name: yandex_organization_manager_organization
+    rename: yandex_organizationmanager_organization
+
+model_config:
+  custom_crud:
+    yandex_organization_manager_mfa_enforcement:
+      create:
+        before_hook: setCorrectEnumForCreate
+      update:
+        before_hook: setCorrectEnumForUpdate
+  upgrade_state:
+    yandex_organizationmanager_user_ssh_key:
+      0:
+        prior_schema: YandexOrganizationmanagerUserSshKeyResourceSchema
+        state_upgrader: moveStateFromV0
+    yandex_organizationmanager_group:
+      0:
+        prior_schema: YandexOrganizationmanagerGroupResourceSchema
+        state_upgrader: moveStateFromV0
+  renames:
+    yandex.cloud.organizationmanager.v1.Group:
+      fields:
+        subject_container_id: ""
+        external_id: ""
+    yandex.cloud.organizationmanager.v1.CreateMfaEnforcementRequest:
+      fields:
+        status: ""
+    yandex.cloud.organizationmanager.v1.UpdateMfaEnforcementRequest:
+      fields:
+        status: ""
+    yandex.cloud.organizationmanager.v1.idp.PasswordQualityPolicy:
+      fields:
+        min_length: ""
+        required_classes: ""
+        min_length_by_class_settings: ""
+    yandex.cloud.organizationmanager.v1.idp.Domain:
+      fields:
+        status: ""
+        status_code: ""
+        validated_at: ""
+        challenges: ""
+        deletion_protection: ""
+  custom_importer:
+    yandex_organizationmanager_idp_userpool_domain: customDomainImporter
+  custom_fields:
+    yandex_organizationmanager_idp_userpool_domain:
+      - name: id
+        type: string
+        description: "ID in format userpool_id:domain"
+        optional: true
+        computed: true
+  copy_from:
+    yandex_organization_manager_idp_userpool:
+      resources:
+        - name: yandex_organizationmanager_idp_userpool_domain
+          crud:
+            create:
+              name: AddDomain
+            delete:
+              name: DeleteDomain
+            read:
+              name: GetDomain
+              after_hook: setID
+            update:
+              name: "-"
+
+  options:
+    yandex.cloud.organizationmanager.v1.Group.organization_id:
+      force_new: true
+    yandex.cloud.organizationmanager.v1.MfaEnforcement.organization_id:
+      force_new: true
+    yandex.cloud.organizationmanager.v1.MfaEnforcement.status:
+      specifiable: true
+    yandex.cloud.organizationmanager.v1.UserSshKey.id:
+      force_new: true
+    yandex.cloud.organizationmanager.v1.UserSshKey.subject_id:
+      force_new: true
+    yandex.cloud.organizationmanager.v1.UserSshKey.data:
+      force_new: true
+    yandex.cloud.organizationmanager.v1.UserSshKey.organization_id:
+      force_new: true
+    yandex.cloud.organizationmanager.v1.idp.PasswordSpec.password:
+      sensitive: true
+    yandex.cloud.organizationmanager.v1.idp.PasswordSpec.generation_proof:
+      sensitive: true
+    yandex.cloud.organizationmanager.v1.idp.PasswordHash.password_hash:
+      sensitive: true
+    yandex.cloud.organizationmanager.v1.idp.application.saml.Application.organization_id:
+      force_new: true
+    yandex.cloud.organizationmanager.v1.idp.application.oauth.ClientGrant.authorized_scopes:
+      set: true
+    yandex.cloud.organizationmanager.v1.idp.GetUserpoolDomainRequest.userpool_id:
+      ordinary_field: true
+    yandex.cloud.organizationmanager.v1.idp.DeleteUserpoolDomainRequest.userpool_id:
+      ordinary_field: true
+    yandex.cloud.organizationmanager.v1.idp.AddUserpoolDomainRequest.userpool_id:
+      ordinary_field: true
