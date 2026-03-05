@@ -16,7 +16,7 @@ use std::{str::FromStr, time::Duration};
 use tonic::{
     metadata::{Ascii, MetadataValue},
     service::interceptor::InterceptedService,
-    transport::{Channel, Endpoint},
+    transport::{Channel, ClientTlsConfig, Endpoint},
 };
 
 struct Endpoints;
@@ -70,6 +70,7 @@ impl Client {
     async fn api_channel(&self, endpoint: &'static str) -> Result<Channel, SDKError> {
         let version = env!("CARGO_PKG_VERSION");
         let ep = Endpoint::from_static(endpoint)
+            .tls_config(ClientTlsConfig::new().with_enabled_roots())?
             .timeout(Duration::from_secs(20))
             .connect_timeout(Duration::from_secs(5))
             .user_agent(format!("yandex-cloud-rust-sdk/{version}"))
