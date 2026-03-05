@@ -25,6 +25,7 @@ impl Endpoints {
     pub const IAM_AUD: &str = "https://iam.api.cloud.yandex.net/iam/v1/tokens";
     pub const IAM_GRPC_ENDPOINT: &str = "https://iam.api.cloud.yandex.net";
     pub const KMS_GRPC_ENDPOINT: &str = "https://kms.api.cloud.yandex.net";
+    pub const KMS_CRYPTO_GRPC_ENDPOINT: &str = "https://kms.yandex:443";
 }
 
 pub struct Client;
@@ -103,7 +104,9 @@ impl Client {
         &self,
     ) -> Result<SymmetricCryptoServiceClient<InterceptedService<Channel, AuthInterceptor>>, SDKError>
     {
-        let channel = self.api_channel(Endpoints::KMS_GRPC_ENDPOINT).await?;
+        let channel = self
+            .api_channel(Endpoints::KMS_CRYPTO_GRPC_ENDPOINT)
+            .await?;
 
         Ok(SymmetricCryptoServiceClient::with_interceptor(
             channel,
