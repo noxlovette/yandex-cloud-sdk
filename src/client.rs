@@ -1,46 +1,112 @@
 use crate::{
     SDKError,
-    iam::Iam,
-    jwt::{Claims, IamPayload},
+    jwt::Claims,
+    yandex::cloud::{
+        iam::v1::{
+            CreateIamTokenRequest, CreateIamTokenResponse, create_iam_token_request::Identity,
+            iam_token_service_client::IamTokenServiceClient,
+        },
+        kms::v1::{
+            symmetric_crypto_service_client::SymmetricCryptoServiceClient,
+            symmetric_key_service_client::SymmetricKeyServiceClient,
+        },
+    },
 };
 use std::{str::FromStr, time::Duration};
+use tonic::{
+    metadata::{Ascii, MetadataValue},
+    service::interceptor::InterceptedService,
+    transport::{Channel, Endpoint},
+};
 
-pub const IAMENDPOINT: &str = "https://iam.api.cloud.yandex.net/iam/v1/tokens";
+struct Endpoints;
 
-pub struct Client {
-    client: reqwest::Client,
+impl Endpoints {
+    pub const IAM_AUD: &str = "https://iam.api.cloud.yandex.net/iam/v1/tokens";
+    pub const IAM_GRPC_ENDPOINT: &str = "https://iam.api.cloud.yandex.net";
+    pub const KMS_GRPC_ENDPOINT: &str = "https://kms.api.cloud.yandex.net";
+}
+
+pub struct Client;
+#[derive(Clone)]
+pub struct AuthInterceptor {
+    auth_header: MetadataValue<Ascii>,
+}
+
+impl tonic::service::Interceptor for AuthInterceptor {
+    fn call(&mut self, mut req: tonic::Request<()>) -> Result<tonic::Request<()>, tonic::Status> {
+        req.metadata_mut()
+            .insert("authorization", self.auth_header.clone());
+        Ok(req)
+    }
 }
 
 impl Client {
     pub fn new() -> Result<Self, SDKError> {
-        let version = env!("CARGO_PKG_VERSION");
-        let client = reqwest::Client::builder()
-            .timeout(Duration::from_secs(20))
-            .connect_timeout(Duration::from_secs(5))
-            .user_agent(format!("yandex-cloud-rust-sdk/{version}"))
-            .pool_idle_timeout(Some(Duration::from_secs(90)))
-            .pool_max_idle_per_host(20)
-            .build()
-            .map_err(|e| SDKError::Config(e.to_string()))?;
-
-        Ok(Self { client })
+        Ok(Self)
     }
 
-    pub async fn iam(&self) -> Result<Iam, SDKError> {
+    pub async fn iam(&self) -> Result<CreateIamTokenResponse, SDKError> {
         let jwt = Claims::new(
-            &url::Url::from_str(IAMENDPOINT).map_err(|e| SDKError::Internal(e.to_string()))?,
+            &url::Url::from_str(Endpoints::IAM_AUD)
+                .map_err(|e| SDKError::Internal(e.to_string()))?,
         )
         .encode()?;
 
-        let iam = self
-            .client
-            .post(IAMENDPOINT)
-            .json(&IamPayload { jwt })
-            .send()
-            .await?
-            .json::<Iam>()
-            .await?;
+        let channel = self.api_channel(Endpoints::IAM_GRPC_ENDPOINT).await?;
 
-        Ok(iam)
+        let mut client = IamTokenServiceClient::new(channel);
+
+        let response = client
+            .create(CreateIamTokenRequest {
+                identity: Some(Identity::Jwt(jwt)),
+            })
+            .await?
+            .into_inner();
+
+        Ok(response)
+    }
+
+    async fn api_channel(&self, endpoint: &'static str) -> Result<Channel, SDKError> {
+        let version = env!("CARGO_PKG_VERSION");
+        let ep = Endpoint::from_static(endpoint)
+            .timeout(Duration::from_secs(20))
+            .connect_timeout(Duration::from_secs(5))
+            .user_agent(format!("yandex-cloud-rust-sdk/{version}"))
+            .map_err(|e| SDKError::Config(e.to_string()))?;
+
+        Ok(ep.connect().await?)
+    }
+
+    async fn interceptor(&self) -> Result<AuthInterceptor, SDKError> {
+        let auth_header = format!("Bearer {}", self.iam().await?.iam_token)
+            .parse()
+            .map_err(|e| SDKError::Config(format!("failed to parse authorization header: {e}")))?;
+
+        Ok(AuthInterceptor { auth_header })
+    }
+
+    pub async fn kms_symmetric_key_client(
+        &self,
+    ) -> Result<SymmetricKeyServiceClient<InterceptedService<Channel, AuthInterceptor>>, SDKError>
+    {
+        let channel = self.api_channel(Endpoints::KMS_GRPC_ENDPOINT).await?;
+
+        Ok(SymmetricKeyServiceClient::with_interceptor(
+            channel,
+            self.interceptor().await?,
+        ))
+    }
+
+    pub async fn kms_symmetric_crypto_client(
+        &self,
+    ) -> Result<SymmetricCryptoServiceClient<InterceptedService<Channel, AuthInterceptor>>, SDKError>
+    {
+        let channel = self.api_channel(Endpoints::KMS_GRPC_ENDPOINT).await?;
+
+        Ok(SymmetricCryptoServiceClient::with_interceptor(
+            channel,
+            self.interceptor().await?,
+        ))
     }
 }

@@ -11,6 +11,12 @@ pub enum SDKError {
     #[error("Config: {0}")]
     Config(String),
 
-    #[error("reqwest error: {0}")]
-    Server(#[from] reqwest::Error),
+    #[error("gRPC transport error: {0}")]
+    GrpcTransport(#[from] tonic::transport::Error),
+
+    #[error("gRPC status error: {0}")]
+    GrpcStatus(#[from] tonic::Status),
+
+    #[error("HTTP error: {0}")]
+    Http(#[from] reqwest::Error),
 }

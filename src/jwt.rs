@@ -77,8 +77,3 @@ pub struct Claims {
     exp: u64,
     iat: u64,
 }
-
-#[derive(Deserialize, Serialize)]
-pub struct IamPayload {
-    pub jwt: String,
-}
