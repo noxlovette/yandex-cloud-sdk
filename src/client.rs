@@ -28,6 +28,7 @@ impl Endpoints {
     pub const KMS_CRYPTO_GRPC_ENDPOINT: &str = "https://kms.yandex:443";
 }
 
+#[derive(Clone, Debug)]
 pub struct Client;
 #[derive(Clone)]
 pub struct AuthInterceptor {
