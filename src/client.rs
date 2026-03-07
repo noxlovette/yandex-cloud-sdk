@@ -89,7 +89,7 @@ impl Client {
         Ok(AuthInterceptor { auth_header })
     }
 
-    pub async fn kms_symmetric_key_client(
+    pub(crate) async fn kms_symmetric_key_client(
         &self,
     ) -> Result<SymmetricKeyServiceClient<InterceptedService<Channel, AuthInterceptor>>, SDKError>
     {
@@ -101,7 +101,7 @@ impl Client {
         ))
     }
 
-    pub async fn kms_symmetric_crypto_client(
+    pub(crate) async fn kms_symmetric_crypto_client(
         &self,
     ) -> Result<SymmetricCryptoServiceClient<InterceptedService<Channel, AuthInterceptor>>, SDKError>
     {
