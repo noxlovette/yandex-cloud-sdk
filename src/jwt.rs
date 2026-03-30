@@ -63,11 +63,26 @@ impl Claims {
         })
     }
 }
-
 pub static KEY: LazyLock<AuthorisedKey> = LazyLock::new(|| {
-    let file = std::fs::read("authorized_key.json").expect("did not find authorized_key.json");
+    let file = {
+        #[cfg(debug_assertions)]
+        {
+            std::fs::read("authorized_key.json").expect("did not find authorized_key.json")
+        }
 
-    serde_json::from_slice::<AuthorisedKey>(&file).expect("failed to read json")
+        #[cfg(not(debug_assertions))]
+        {
+            let encoded = std::env::var("YANDEX_AUTHORIZED_KEY")
+                .expect("did not find YANDEX_AUTHORIZED_KEY env variable");
+
+            BASE64_STANDARD
+                .decode(encoded)
+                .expect("failed to decode YANDEX_AUTHORIZED_KEY as base64")
+        }
+    };
+
+    serde_json::from_slice::<AuthorisedKey>(&file)
+        .expect("failed to deserialize AuthorisedKey from json")
 });
 
 #[derive(Deserialize, Serialize)]
