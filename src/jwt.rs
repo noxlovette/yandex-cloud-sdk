@@ -1,4 +1,5 @@
 use crate::SDKError;
+use base64::prelude::*;
 use chrono::{DateTime, Utc};
 use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, encode};
 use serde::{Deserialize, Serialize};
