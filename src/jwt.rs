@@ -9,6 +9,12 @@ use std::{
 };
 use url::Url;
 
+fn decode_authorized_key_base64(
+    encoded: &str,
+) -> Result<Vec<u8>, base64::DecodeError> {
+    BASE64_STANDARD.decode(encoded)
+}
+
 #[derive(Deserialize)]
 pub struct AuthorisedKey {
     pub id: String,
@@ -76,8 +82,7 @@ pub static KEY: LazyLock<AuthorisedKey> = LazyLock::new(|| {
             let encoded = std::env::var("YANDEX_AUTHORIZED_KEY")
                 .expect("did not find YANDEX_AUTHORIZED_KEY env variable");
 
-            BASE64_STANDARD
-                .decode(encoded)
+            decode_authorized_key_base64(&encoded)
                 .expect("failed to decode YANDEX_AUTHORIZED_KEY as base64")
         }
     };
@@ -92,4 +97,27 @@ pub struct Claims {
     iss: String,
     exp: u64,
     iat: u64,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::decode_authorized_key_base64;
+    use base64::prelude::*;
+
+    #[test]
+    fn decodes_authorized_key_json_from_base64() {
+        let authorized_key = br#"{"id":"test-key"}"#;
+        let encoded = BASE64_STANDARD.encode(authorized_key);
+
+        let decoded = decode_authorized_key_base64(&encoded).unwrap();
+
+        assert_eq!(decoded, authorized_key);
+    }
+
+    #[test]
+    fn fails_to_decode_invalid_authorized_key_base64() {
+        let err = decode_authorized_key_base64("not-base64!").unwrap_err();
+
+        assert_eq!(err, base64::DecodeError::InvalidByte(3, b'-'));
+    }
 }
