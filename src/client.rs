@@ -32,6 +32,8 @@ impl Endpoints {
     pub const KMS_GRPC_ENDPOINT: &str = "https://kms.api.cloud.yandex.net";
     pub const KMS_CRYPTO_GRPC_ENDPOINT: &str = "https://kms.yandex:443";
     pub const LOGGING_GRPC_ENDPOINT: &str = "https://logging.api.cloud.yandex.net";
+    pub const LOGGING_INGESTION_GRPC_ENDPOINT: &str = "https://ingester.logging.yandexcloud.net";
+    pub const LOGGING_READING_GRPC_ENDPOINT: &str = "https://reader.logging.yandexcloud.net";
 }
 
 /// Authenticated Yandex Cloud SDK client.
@@ -141,7 +143,9 @@ impl Client {
         &self,
     ) -> Result<LogIngestionServiceClient<InterceptedService<Channel, AuthInterceptor>>, SDKError>
     {
-        let channel = self.api_channel(Endpoints::LOGGING_GRPC_ENDPOINT).await?;
+        let channel = self
+            .api_channel(Endpoints::LOGGING_INGESTION_GRPC_ENDPOINT)
+            .await?;
 
         Ok(LogIngestionServiceClient::with_interceptor(
             channel,
@@ -152,7 +156,9 @@ impl Client {
     pub(crate) async fn logging_reading_client(
         &self,
     ) -> Result<LogReadingServiceClient<InterceptedService<Channel, AuthInterceptor>>, SDKError> {
-        let channel = self.api_channel(Endpoints::LOGGING_GRPC_ENDPOINT).await?;
+        let channel = self
+            .api_channel(Endpoints::LOGGING_READING_GRPC_ENDPOINT)
+            .await?;
 
         Ok(LogReadingServiceClient::with_interceptor(
             channel,
