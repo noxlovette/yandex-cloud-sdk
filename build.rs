@@ -1,34 +1,31 @@
-use std::{fs, path::{Path, PathBuf}};
-
-fn collect_proto_files(dir: &Path, files: &mut Vec<PathBuf>) -> Result<(), Box<dyn std::error::Error>> {
-    for entry in fs::read_dir(dir)? {
-        let entry = entry?;
-        let path = entry.path();
-
-        if path.is_dir() {
-            if path.strip_prefix("proto").ok().is_some_and(|p| p.starts_with("third_party")) {
-                continue;
-            }
-            collect_proto_files(&path, files)?;
-        } else if path.extension().is_some_and(|ext| ext == "proto") {
-            files.push(path);
-        }
-    }
-
-    Ok(())
-}
+use std::path::PathBuf;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("cargo:rerun-if-changed=proto");
+    let protos = vec![
+        PathBuf::from("proto/yandex/cloud/access/access.proto"),
+        PathBuf::from("proto/yandex/cloud/api/operation.proto"),
+        PathBuf::from("proto/yandex/cloud/iam/v1/iam_token_service.proto"),
+        PathBuf::from("proto/yandex/cloud/kms/v1/symmetric_crypto_service.proto"),
+        PathBuf::from("proto/yandex/cloud/kms/v1/symmetric_key.proto"),
+        PathBuf::from("proto/yandex/cloud/kms/v1/symmetric_key_service.proto"),
+        PathBuf::from("proto/yandex/cloud/logging/v1/log_entry.proto"),
+        PathBuf::from("proto/yandex/cloud/logging/v1/log_group.proto"),
+        PathBuf::from("proto/yandex/cloud/logging/v1/log_group_service.proto"),
+        PathBuf::from("proto/yandex/cloud/logging/v1/log_ingestion_service.proto"),
+        PathBuf::from("proto/yandex/cloud/logging/v1/log_reading_service.proto"),
+        PathBuf::from("proto/yandex/cloud/logging/v1/log_resource.proto"),
+        PathBuf::from("proto/yandex/cloud/operation/operation.proto"),
+    ];
 
-    let mut protos = Vec::new();
+    for proto in &protos {
+        println!("cargo:rerun-if-changed={}", proto.display());
+    }
+    println!("cargo:rerun-if-changed=proto/third_party/googleapis");
+
     let includes = vec![
         PathBuf::from("proto"),
         PathBuf::from("proto/third_party/googleapis"),
     ];
-
-    collect_proto_files(Path::new("proto"), &mut protos)?;
-    protos.sort();
 
     tonic_prost_build::configure()
         .build_server(false)
