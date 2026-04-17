@@ -10,6 +10,11 @@ use crate::{
             symmetric_crypto_service_client::SymmetricCryptoServiceClient,
             symmetric_key_service_client::SymmetricKeyServiceClient,
         },
+        logging::v1::{
+            log_group_service_client::LogGroupServiceClient,
+            log_ingestion_service_client::LogIngestionServiceClient,
+            log_reading_service_client::LogReadingServiceClient,
+        },
     },
 };
 use std::{str::FromStr, time::Duration};
@@ -26,10 +31,14 @@ impl Endpoints {
     pub const IAM_GRPC_ENDPOINT: &str = "https://iam.api.cloud.yandex.net";
     pub const KMS_GRPC_ENDPOINT: &str = "https://kms.api.cloud.yandex.net";
     pub const KMS_CRYPTO_GRPC_ENDPOINT: &str = "https://kms.yandex:443";
+    pub const LOGGING_GRPC_ENDPOINT: &str = "https://logging.api.cloud.yandex.net";
 }
 
+/// Authenticated Yandex Cloud SDK client.
 #[derive(Clone, Debug)]
 pub struct Client;
+
+/// Tonic interceptor that injects bearer auth header into requests.
 #[derive(Clone)]
 pub struct AuthInterceptor {
     auth_header: MetadataValue<Ascii>,
@@ -44,10 +53,12 @@ impl tonic::service::Interceptor for AuthInterceptor {
 }
 
 impl Client {
+    /// Creates new SDK client.
     pub fn new() -> Result<Self, SDKError> {
         Ok(Self)
     }
 
+    /// Exchanges service account JWT for IAM token.
     pub async fn iam(&self) -> Result<CreateIamTokenResponse, SDKError> {
         let jwt = Claims::new(
             &url::Url::from_str(Endpoints::IAM_AUD)
@@ -110,6 +121,40 @@ impl Client {
             .await?;
 
         Ok(SymmetricCryptoServiceClient::with_interceptor(
+            channel,
+            self.interceptor().await?,
+        ))
+    }
+
+    pub(crate) async fn logging_group_client(
+        &self,
+    ) -> Result<LogGroupServiceClient<InterceptedService<Channel, AuthInterceptor>>, SDKError> {
+        let channel = self.api_channel(Endpoints::LOGGING_GRPC_ENDPOINT).await?;
+
+        Ok(LogGroupServiceClient::with_interceptor(
+            channel,
+            self.interceptor().await?,
+        ))
+    }
+
+    pub(crate) async fn logging_ingestion_client(
+        &self,
+    ) -> Result<LogIngestionServiceClient<InterceptedService<Channel, AuthInterceptor>>, SDKError>
+    {
+        let channel = self.api_channel(Endpoints::LOGGING_GRPC_ENDPOINT).await?;
+
+        Ok(LogIngestionServiceClient::with_interceptor(
+            channel,
+            self.interceptor().await?,
+        ))
+    }
+
+    pub(crate) async fn logging_reading_client(
+        &self,
+    ) -> Result<LogReadingServiceClient<InterceptedService<Channel, AuthInterceptor>>, SDKError> {
+        let channel = self.api_channel(Endpoints::LOGGING_GRPC_ENDPOINT).await?;
+
+        Ok(LogReadingServiceClient::with_interceptor(
             channel,
             self.interceptor().await?,
         ))

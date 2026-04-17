@@ -6,6 +6,7 @@ use crate::{
 };
 
 impl Client {
+    /// Encrypts UTF-8 payload with symmetric KMS key.
     pub async fn encrypt(&self, key_id: &str, payload: &str) -> Result<Vec<u8>, SDKError> {
         let mut kms = self.kms_symmetric_crypto_client().await?;
 
@@ -22,6 +23,7 @@ impl Client {
         Ok(response.ciphertext)
     }
 
+    /// Decrypts ciphertext with symmetric KMS key and returns UTF-8 plaintext.
     pub async fn decrypt(&self, key_id: &str, payload: Vec<u8>) -> Result<String, SDKError> {
         let mut kms = self.kms_symmetric_crypto_client().await?;
 

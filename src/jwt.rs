@@ -15,17 +15,25 @@ fn decode_authorized_key_base64(
     BASE64_STANDARD.decode(encoded)
 }
 
+/// Service account authorized key payload.
 #[derive(Deserialize)]
 pub struct AuthorisedKey {
+    /// Key identifier.
     pub id: String,
+    /// Service account identifier.
     pub service_account_id: String,
+    /// Key creation timestamp.
     pub created_at: DateTime<Utc>,
+    /// Key algorithm name.
     pub key_algorithm: String,
+    /// Public key in PEM form.
     pub public_key: String,
+    /// Private key in PEM form.
     pub private_key: String,
 }
 
 impl AuthorisedKey {
+    /// Builds JWT signing key from private key material.
     pub fn encoding(&self) -> EncodingKey {
         EncodingKey::from_rsa_pem(
             self.private_key
@@ -37,12 +45,15 @@ impl AuthorisedKey {
         )
         .expect("failed to read encoding key")
     }
+
+    /// Builds JWT decoding key from public key material.
     pub fn decoding(&self) -> DecodingKey {
         DecodingKey::from_rsa_pem(self.public_key.as_bytes()).expect("failed to read decoding key")
     }
 }
 
 impl Claims {
+    /// Creates JWT claims for given audience.
     pub fn new(aud: &url::Url) -> Self {
         let iat = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -59,6 +70,7 @@ impl Claims {
         }
     }
 
+    /// Encodes claims into signed JWT.
     pub fn encode(&self) -> Result<String, SDKError> {
         let mut header = Header::new(Algorithm::PS256);
         header.kid = Some(KEY.id.clone());
@@ -70,6 +82,8 @@ impl Claims {
         })
     }
 }
+
+/// Lazily loaded service account key used for JWT signing.
 pub static KEY: LazyLock<AuthorisedKey> = LazyLock::new(|| {
     let file = {
         #[cfg(debug_assertions)]
@@ -91,6 +105,7 @@ pub static KEY: LazyLock<AuthorisedKey> = LazyLock::new(|| {
         .expect("failed to deserialize AuthorisedKey from json")
 });
 
+/// IAM JWT claims payload.
 #[derive(Deserialize, Serialize)]
 pub struct Claims {
     aud: Url,
