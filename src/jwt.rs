@@ -9,9 +9,7 @@ use std::{
 };
 use url::Url;
 
-fn decode_authorized_key_base64(
-    encoded: &str,
-) -> Result<Vec<u8>, base64::DecodeError> {
+fn decode_authorized_key_base64(encoded: &str) -> Result<Vec<u8>, base64::DecodeError> {
     BASE64_STANDARD.decode(encoded)
 }
 
@@ -86,12 +84,6 @@ impl Claims {
 /// Lazily loaded service account key used for JWT signing.
 pub static KEY: LazyLock<AuthorisedKey> = LazyLock::new(|| {
     let file = {
-        #[cfg(debug_assertions)]
-        {
-            std::fs::read("authorized_key.json").expect("did not find authorized_key.json")
-        }
-
-        #[cfg(not(debug_assertions))]
         {
             let encoded = std::env::var("YANDEX_AUTHORIZED_KEY")
                 .expect("did not find YANDEX_AUTHORIZED_KEY env variable");
