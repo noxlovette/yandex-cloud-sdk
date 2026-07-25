@@ -17,3 +17,5 @@ mod client;
 pub use client::*;
 mod kms;
 mod logging;
+mod ocr;
+mod vision;

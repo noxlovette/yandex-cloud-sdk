@@ -15,6 +15,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         PathBuf::from("proto/yandex/cloud/logging/v1/log_reading_service.proto"),
         PathBuf::from("proto/yandex/cloud/logging/v1/log_resource.proto"),
         PathBuf::from("proto/yandex/cloud/operation/operation.proto"),
+        // OCR service (TextRecognitionService — streaming)
+        PathBuf::from("proto/yandex/cloud/ai/ocr/v1/ocr_service.proto"),
+        // Vision service (BatchAnalyze — image copy search, text detection, etc.)
+        PathBuf::from("proto/yandex/cloud/ai/vision/v1/vision_service.proto"),
     ];
 
     for proto in &protos {

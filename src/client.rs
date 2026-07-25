@@ -2,6 +2,10 @@ use crate::{
     SDKError,
     jwt::Claims,
     yandex::cloud::{
+        ai::{
+            ocr::v1::text_recognition_service_client::TextRecognitionServiceClient,
+            vision::v1::vision_service_client::VisionServiceClient,
+        },
         iam::v1::{
             CreateIamTokenRequest, CreateIamTokenResponse, create_iam_token_request::Identity,
             iam_token_service_client::IamTokenServiceClient,
@@ -34,6 +38,8 @@ impl Endpoints {
     pub const LOGGING_GRPC_ENDPOINT: &str = "https://logging.api.cloud.yandex.net";
     pub const LOGGING_INGESTION_GRPC_ENDPOINT: &str = "https://ingester.logging.yandexcloud.net";
     pub const LOGGING_READING_GRPC_ENDPOINT: &str = "https://reader.logging.yandexcloud.net";
+    pub const OCR_GRPC_ENDPOINT: &str = "https://ocr.api.cloud.yandex.net";
+    pub const VISION_GRPC_ENDPOINT: &str = "https://vision.api.cloud.yandex.net";
 }
 
 /// Authenticated Yandex Cloud SDK client.
@@ -161,6 +167,29 @@ impl Client {
             .await?;
 
         Ok(LogReadingServiceClient::with_interceptor(
+            channel,
+            self.interceptor().await?,
+        ))
+    }
+
+    pub(crate) async fn ocr_text_recognition_client(
+        &self,
+    ) -> Result<TextRecognitionServiceClient<InterceptedService<Channel, AuthInterceptor>>, SDKError>
+    {
+        let channel = self.api_channel(Endpoints::OCR_GRPC_ENDPOINT).await?;
+
+        Ok(TextRecognitionServiceClient::with_interceptor(
+            channel,
+            self.interceptor().await?,
+        ))
+    }
+
+    pub(crate) async fn vision_client(
+        &self,
+    ) -> Result<VisionServiceClient<InterceptedService<Channel, AuthInterceptor>>, SDKError> {
+        let channel = self.api_channel(Endpoints::VISION_GRPC_ENDPOINT).await?;
+
+        Ok(VisionServiceClient::with_interceptor(
             channel,
             self.interceptor().await?,
         ))
