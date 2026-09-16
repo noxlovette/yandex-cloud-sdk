@@ -2,7 +2,7 @@ use std::str::from_utf8;
 
 use crate::{
     Client, SDKError,
-    yandex::cloud::kms::v1::{SymmetricDecryptRequest, SymmetricEncryptRequest},
+    generated::yandex::cloud::kms::v1::{SymmetricDecryptRequest, SymmetricEncryptRequest},
 };
 
 impl Client {

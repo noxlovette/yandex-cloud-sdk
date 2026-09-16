@@ -1,7 +1,7 @@
 use crate::{
     SDKError,
     jwt::Claims,
-    yandex::cloud::{
+    generated::yandex::cloud::{
         ai::{
             ocr::v1::text_recognition_service_client::TextRecognitionServiceClient,
             vision::v1::vision_service_client::VisionServiceClient,
@@ -28,14 +28,14 @@ use tonic::{
 struct Endpoints;
 
 impl Endpoints {
-    pub const IAM_AUD: &str = "https://iam.api.cloud.yandex.net/iam/v1/tokens";
-    pub const IAM_GRPC_ENDPOINT: &str = "https://iam.api.cloud.yandex.net";
-    pub const KMS_CRYPTO_GRPC_ENDPOINT: &str = "https://kms.yandex:443";
-    pub const LOGGING_GRPC_ENDPOINT: &str = "https://logging.api.cloud.yandex.net";
-    pub const LOGGING_INGESTION_GRPC_ENDPOINT: &str = "https://ingester.logging.yandexcloud.net";
-    pub const LOGGING_READING_GRPC_ENDPOINT: &str = "https://reader.logging.yandexcloud.net";
-    pub const OCR_GRPC_ENDPOINT: &str = "https://ocr.api.cloud.yandex.net";
-    pub const VISION_GRPC_ENDPOINT: &str = "https://vision.api.cloud.yandex.net";
+    const IAM_AUD: &str = "https://iam.api.cloud.yandex.net/iam/v1/tokens";
+    const IAM_GRPC_ENDPOINT: &str = "https://iam.api.cloud.yandex.net";
+    const KMS_CRYPTO_GRPC_ENDPOINT: &str = "https://kms.yandex:443";
+    const LOGGING_GRPC_ENDPOINT: &str = "https://logging.api.cloud.yandex.net";
+    const LOGGING_INGESTION_GRPC_ENDPOINT: &str = "https://ingester.logging.yandexcloud.net";
+    const LOGGING_READING_GRPC_ENDPOINT: &str = "https://reader.logging.yandexcloud.net";
+    const OCR_GRPC_ENDPOINT: &str = "https://ocr.api.cloud.yandex.net";
+    const VISION_GRPC_ENDPOINT: &str = "https://vision.api.cloud.yandex.net";
 }
 
 /// Authenticated Yandex Cloud SDK client.
@@ -44,7 +44,7 @@ pub struct Client;
 
 /// Tonic interceptor that injects bearer auth header into requests.
 #[derive(Clone)]
-pub struct AuthInterceptor {
+pub(crate) struct AuthInterceptor {
     auth_header: MetadataValue<Ascii>,
 }
 

@@ -3,7 +3,7 @@ use prost_types::Timestamp;
 
 use crate::{
     Client, SDKError,
-    yandex::cloud::logging::v1::{
+    generated::yandex::cloud::logging::v1::{
         Criteria, Destination, GetLogGroupRequest, IncomingLogEntry, ListLogGroupsRequest,
         LogGroup, ReadRequest, ReadResponse, WriteRequest, WriteResponse, destination, log_level,
     },
@@ -71,7 +71,7 @@ impl Client {
         page_size: i64,
         page_token: impl Into<String>,
         filter: impl Into<String>,
-    ) -> Result<crate::yandex::cloud::logging::v1::ListLogGroupsResponse, SDKError> {
+    ) -> Result<crate::generated::yandex::cloud::logging::v1::ListLogGroupsResponse, SDKError> {
         let mut logging = self.logging_group_client().await?;
 
         Ok(logging
@@ -101,7 +101,7 @@ impl Client {
     ) -> Result<ReadResponse, SDKError> {
         self.logging_read(ReadRequest {
             selector: Some(
-                crate::yandex::cloud::logging::v1::read_request::Selector::Criteria(Criteria {
+                crate::generated::yandex::cloud::logging::v1::read_request::Selector::Criteria(Criteria {
                     log_group_id: log_group_id.to_string(),
                     resource_types: Vec::new(),
                     resource_ids: Vec::new(),

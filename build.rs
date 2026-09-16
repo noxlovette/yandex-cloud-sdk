@@ -7,7 +7,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         PathBuf::from("proto/yandex/cloud/iam/v1/iam_token_service.proto"),
         PathBuf::from("proto/yandex/cloud/kms/v1/symmetric_crypto_service.proto"),
         PathBuf::from("proto/yandex/cloud/kms/v1/symmetric_key.proto"),
-        PathBuf::from("proto/yandex/cloud/kms/v1/symmetric_key_service.proto"),
         PathBuf::from("proto/yandex/cloud/logging/v1/log_entry.proto"),
         PathBuf::from("proto/yandex/cloud/logging/v1/log_group.proto"),
         PathBuf::from("proto/yandex/cloud/logging/v1/log_group_service.proto"),
