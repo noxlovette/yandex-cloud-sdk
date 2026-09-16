@@ -2,8 +2,7 @@ use crate::{
     Client, SDKError,
     yandex::cloud::ai::vision::v1::{
         AnalyzeSpec, BatchAnalyzeRequest, BatchAnalyzeResponse, Feature, ImageCopySearchAnnotation,
-        analyze_spec::Source,
-        feature::Type as FeatureType,
+        analyze_spec::Source, feature::Type as FeatureType,
         feature_result::Feature as FeatureVariant,
     },
 };

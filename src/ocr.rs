@@ -1,8 +1,7 @@
 use crate::{
     Client, SDKError,
     yandex::cloud::ai::ocr::v1::{
-        RecognizeTextRequest, RecognizeTextResponse,
-        recognize_text_request::Source,
+        RecognizeTextRequest, RecognizeTextResponse, recognize_text_request::Source,
     },
 };
 

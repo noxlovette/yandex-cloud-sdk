@@ -10,8 +10,8 @@ async fn main() -> Result<()> {
         env::var("YANDEX_LOG_GROUP_ID").context("missing YANDEX_LOG_GROUP_ID env var")?;
     let write_message = env::var("YANDEX_LOG_MESSAGE")
         .unwrap_or_else(|_| "hello from yandex-cloud-sdk example".to_string());
-    let read_filter = env::var("YANDEX_LOG_FILTER")
-        .unwrap_or_else(|_| format!("message=\"{write_message}\""));
+    let read_filter =
+        env::var("YANDEX_LOG_FILTER").unwrap_or_else(|_| format!("message=\"{write_message}\""));
 
     let client = Client::new()?;
 

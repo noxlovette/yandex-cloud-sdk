@@ -21,16 +21,17 @@ async fn main() -> Result<()> {
     let image_path = env::var("YANDEX_IMAGE_PATH").context("missing YANDEX_IMAGE_PATH")?;
     let folder_id = env::var("YC_FOLDER_ID").unwrap_or_default();
 
-    let content = fs::read(&image_path)
-        .with_context(|| format!("failed to read image at {image_path}"))?;
+    let content =
+        fs::read(&image_path).with_context(|| format!("failed to read image at {image_path}"))?;
 
-    println!("searching for copies of {image_path} ({} bytes)...", content.len());
+    println!(
+        "searching for copies of {image_path} ({} bytes)...",
+        content.len()
+    );
 
     let client = Client::new()?;
 
-    let result = client
-        .vision_image_copy_search(content, &folder_id)
-        .await?;
+    let result = client.vision_image_copy_search(content, &folder_id).await?;
 
     println!("found {} copy/copies on the web\n", result.copy_count);
 

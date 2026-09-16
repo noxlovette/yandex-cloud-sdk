@@ -35,7 +35,9 @@ impl Client {
     ) -> Result<WriteResponse, SDKError> {
         self.logging_write(WriteRequest {
             destination: Some(Destination {
-                destination: Some(destination::Destination::LogGroupId(log_group_id.to_string())),
+                destination: Some(destination::Destination::LogGroupId(
+                    log_group_id.to_string(),
+                )),
             }),
             resource: None,
             entries: vec![IncomingLogEntry {
@@ -98,8 +100,8 @@ impl Client {
         filter: impl Into<String>,
     ) -> Result<ReadResponse, SDKError> {
         self.logging_read(ReadRequest {
-            selector: Some(crate::yandex::cloud::logging::v1::read_request::Selector::Criteria(
-                Criteria {
+            selector: Some(
+                crate::yandex::cloud::logging::v1::read_request::Selector::Criteria(Criteria {
                     log_group_id: log_group_id.to_string(),
                     resource_types: Vec::new(),
                     resource_ids: Vec::new(),
@@ -110,8 +112,8 @@ impl Client {
                     stream_names: Vec::new(),
                     page_size,
                     max_response_size: 0,
-                },
-            )),
+                }),
+            ),
         })
         .await
     }

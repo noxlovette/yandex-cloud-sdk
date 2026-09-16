@@ -26,8 +26,8 @@ async fn main() -> Result<()> {
     let language = env::var("YANDEX_OCR_LANGUAGE").unwrap_or_else(|_| "ru".into());
     let model = env::var("YANDEX_OCR_MODEL").unwrap_or_else(|_| "page".into());
 
-    let content = fs::read(&image_path)
-        .with_context(|| format!("failed to read image at {image_path}"))?;
+    let content =
+        fs::read(&image_path).with_context(|| format!("failed to read image at {image_path}"))?;
 
     println!("sending {image_path} ({} bytes) to OCR...", content.len());
 
@@ -51,7 +51,10 @@ async fn main() -> Result<()> {
             .as_ref()
             .context("missing text_annotation")?;
 
-        println!("── page {page_num} ({} × {} px) ──", annotation.width, annotation.height);
+        println!(
+            "── page {page_num} ({} × {} px) ──",
+            annotation.width, annotation.height
+        );
 
         if annotation.full_text.is_empty() {
             println!("  (no text detected)");

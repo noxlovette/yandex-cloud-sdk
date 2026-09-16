@@ -145,7 +145,8 @@ impl Client {
 
     pub(crate) async fn logging_reading_client(
         &self,
-    ) -> Result<LogReadingServiceClient<InterceptedService<Channel, AuthInterceptor>>, SDKError> {
+    ) -> Result<LogReadingServiceClient<InterceptedService<Channel, AuthInterceptor>>, SDKError>
+    {
         let channel = self
             .api_channel(Endpoints::LOGGING_READING_GRPC_ENDPOINT)
             .await?;
