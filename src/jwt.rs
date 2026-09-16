@@ -1,7 +1,6 @@
 use crate::SDKError;
 use base64::prelude::*;
-use chrono::{DateTime, Utc};
-use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, encode};
+use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
 use serde::{Deserialize, Serialize};
 use std::{
     sync::LazyLock,
@@ -20,12 +19,6 @@ pub struct AuthorisedKey {
     pub id: String,
     /// Service account identifier.
     pub service_account_id: String,
-    /// Key creation timestamp.
-    pub created_at: DateTime<Utc>,
-    /// Key algorithm name.
-    pub key_algorithm: String,
-    /// Public key in PEM form.
-    pub public_key: String,
     /// Private key in PEM form.
     pub private_key: String,
 }
@@ -43,11 +36,6 @@ impl AuthorisedKey {
         )
         .expect("failed to read encoding key")
     }
-
-    /// Builds JWT decoding key from public key material.
-    pub fn decoding(&self) -> DecodingKey {
-        DecodingKey::from_rsa_pem(self.public_key.as_bytes()).expect("failed to read decoding key")
-    }
 }
 
 impl Claims {
@@ -61,8 +49,8 @@ impl Claims {
         let exp = iat + (chrono::Duration::minutes(30).as_seconds_f64()) as u64;
 
         Self {
-            exp: exp,
-            iat: iat,
+            exp,
+            iat,
             aud: aud.to_owned(),
             iss: KEY.service_account_id.clone(),
         }

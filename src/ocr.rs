@@ -47,7 +47,7 @@ impl Client {
         content: Vec<u8>,
         mime_type: impl Into<String>,
     ) -> Result<String, SDKError> {
-        let pages = self
+        let _pages = self
             .ocr_recognize(content, mime_type, Vec::new(), "page")
             .await?;
 

@@ -10,10 +10,7 @@ use crate::{
             CreateIamTokenRequest, CreateIamTokenResponse, create_iam_token_request::Identity,
             iam_token_service_client::IamTokenServiceClient,
         },
-        kms::v1::{
-            symmetric_crypto_service_client::SymmetricCryptoServiceClient,
-            symmetric_key_service_client::SymmetricKeyServiceClient,
-        },
+        kms::v1::symmetric_crypto_service_client::SymmetricCryptoServiceClient,
         logging::v1::{
             log_group_service_client::LogGroupServiceClient,
             log_ingestion_service_client::LogIngestionServiceClient,
@@ -33,7 +30,6 @@ struct Endpoints;
 impl Endpoints {
     pub const IAM_AUD: &str = "https://iam.api.cloud.yandex.net/iam/v1/tokens";
     pub const IAM_GRPC_ENDPOINT: &str = "https://iam.api.cloud.yandex.net";
-    pub const KMS_GRPC_ENDPOINT: &str = "https://kms.api.cloud.yandex.net";
     pub const KMS_CRYPTO_GRPC_ENDPOINT: &str = "https://kms.yandex:443";
     pub const LOGGING_GRPC_ENDPOINT: &str = "https://logging.api.cloud.yandex.net";
     pub const LOGGING_INGESTION_GRPC_ENDPOINT: &str = "https://ingester.logging.yandexcloud.net";
@@ -106,18 +102,6 @@ impl Client {
             .map_err(|e| SDKError::Config(format!("failed to parse authorization header: {e}")))?;
 
         Ok(AuthInterceptor { auth_header })
-    }
-
-    pub(crate) async fn kms_symmetric_key_client(
-        &self,
-    ) -> Result<SymmetricKeyServiceClient<InterceptedService<Channel, AuthInterceptor>>, SDKError>
-    {
-        let channel = self.api_channel(Endpoints::KMS_GRPC_ENDPOINT).await?;
-
-        Ok(SymmetricKeyServiceClient::with_interceptor(
-            channel,
-            self.interceptor().await?,
-        ))
     }
 
     pub(crate) async fn kms_symmetric_crypto_client(

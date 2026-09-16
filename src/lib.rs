@@ -5,6 +5,7 @@
 
 mod generated {
     #![allow(missing_docs)]
+    #![allow(clippy::module_inception)]
     include!(concat!(env!("OUT_DIR"), "/_includes.rs"));
 }
 
