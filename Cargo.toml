@@ -2,6 +2,17 @@
 name = "yandex-cloud-sdk"
 version = "0.1.0"
 edition = "2024"
+rust-version = "1.85"
+authors = ["Danila Volkov <noxlovette@proton.me>"]
+description = "Unofficial async Rust SDK for Yandex Cloud's gRPC APIs (IAM, KMS, Logging, OCR, Vision)"
+license = "MIT"
+repository = "https://github.com/noxlovette/yandex-cloud-sdk"
+homepage = "https://github.com/noxlovette/yandex-cloud-sdk"
+documentation = "https://docs.rs/yandex-cloud-sdk"
+readme = "README.md"
+keywords = ["yandex", "yandex-cloud", "grpc", "cloud", "sdk"]
+categories = ["api-bindings", "asynchronous"]
+exclude = [".github/"]
 
 [dependencies]
 base64 = "0.22.1"
