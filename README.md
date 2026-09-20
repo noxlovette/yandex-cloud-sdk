@@ -126,10 +126,13 @@ YANDEX_IMAGE_PATH=photo.jpg cargo run --example ocr
 YANDEX_IMAGE_PATH=photo.jpg cargo run --example vision_search
 ```
 
-For any RPC without a dedicated helper, `Client` also exposes the raw request/response types
-(`logging_write`, `logging_read`, `vision_batch_analyze`) and the full generated module tree is
-public, so you can build a `tonic` request by hand against any message in the vendored `.proto`
-files.
+For any RPC without a dedicated helper, `Client` hands out the raw generated `tonic` service
+clients (`vision_client`, `ocr_text_recognition_client`, `logging_group_client`,
+`logging_ingestion_client`, `logging_reading_client`, `kms_symmetric_crypto_client`), already
+authenticated. The IAM token is cached and refreshed shortly before it expires, and channels are
+shared between clones of a `Client`, so it is fine to keep a service client for the life of your
+program. The full generated module tree (`yandex_cloud_sdk::yandex`, `::google`) is public; see
+[`examples/raw_client.rs`](examples/raw_client.rs).
 
 ## Updating the vendored proto files
 

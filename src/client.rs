@@ -1,6 +1,5 @@
 use crate::{
     SDKError,
-    jwt::Claims,
     generated::yandex::cloud::{
         ai::{
             ocr::v1::text_recognition_service_client::TextRecognitionServiceClient,
@@ -17,11 +16,20 @@ use crate::{
             log_reading_service_client::LogReadingServiceClient,
         },
     },
+    jwt::Claims,
 };
-use std::{str::FromStr, time::Duration};
+use std::{
+    collections::HashMap,
+    str::FromStr,
+    sync::{Arc, Mutex, PoisonError},
+    task::{Context, Poll},
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
+};
+use tokio::sync::Mutex as AsyncMutex;
 use tonic::{
-    metadata::{Ascii, MetadataValue},
-    service::interceptor::InterceptedService,
+    Status,
+    body::Body,
+    codegen::{BoxFuture, Service, StdError, http},
     transport::{Channel, ClientTlsConfig, Endpoint},
 };
 
@@ -38,31 +46,96 @@ impl Endpoints {
     const VISION_GRPC_ENDPOINT: &str = "https://vision.api.cloud.yandex.net";
 }
 
-/// Authenticated Yandex Cloud SDK client.
-#[derive(Clone, Debug)]
-pub struct Client;
+/// How long before its expiry a cached IAM token is considered stale and replaced.
+const TOKEN_REFRESH_MARGIN: Duration = Duration::from_secs(5 * 60);
 
-/// Tonic interceptor that injects bearer auth header into requests.
+/// Assumed IAM token lifetime when the response carries no `expires_at`.
+const TOKEN_FALLBACK_TTL: Duration = Duration::from_secs(60 * 60);
+
+/// Authenticated Yandex Cloud SDK client.
+///
+/// Cheap to clone; clones share one IAM token cache and one set of gRPC channels.
+/// The IAM token is fetched on first use and transparently refreshed shortly
+/// before it expires, so a `Client` (or any service client built from it) can
+/// be held for as long as needed.
 #[derive(Clone)]
-pub(crate) struct AuthInterceptor {
-    auth_header: MetadataValue<Ascii>,
+pub struct Client {
+    inner: Arc<Inner>,
 }
 
-impl tonic::service::Interceptor for AuthInterceptor {
-    fn call(&mut self, mut req: tonic::Request<()>) -> Result<tonic::Request<()>, tonic::Status> {
-        req.metadata_mut()
-            .insert("authorization", self.auth_header.clone());
-        Ok(req)
+struct Inner {
+    /// Cached IAM token. The async mutex is held across the refresh so
+    /// concurrent callers wait for one exchange instead of each doing their own.
+    token: AsyncMutex<Option<CachedToken>>,
+    channels: Mutex<HashMap<&'static str, Channel>>,
+}
+
+struct CachedToken {
+    header: http::HeaderValue,
+    refresh_at: Instant,
+}
+
+impl std::fmt::Debug for Client {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Client").finish_non_exhaustive()
+    }
+}
+
+/// gRPC channel that authenticates every request with the [`Client`]'s current IAM token.
+///
+/// This is the transport type of the service clients returned by
+/// [`Client::vision_client`] and friends. The token is looked up (and refreshed
+/// if needed) per request, so a service client never goes stale.
+#[derive(Clone, Debug)]
+pub struct AuthChannel {
+    channel: Channel,
+    client: Client,
+}
+
+impl Service<http::Request<Body>> for AuthChannel {
+    type Response = http::Response<Body>;
+    type Error = StdError;
+    type Future = BoxFuture<Self::Response, Self::Error>;
+
+    fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        self.channel.poll_ready(cx).map_err(Into::into)
+    }
+
+    fn call(&mut self, mut req: http::Request<Body>) -> Self::Future {
+        // Take the instance that was driven to readiness, leave a fresh clone behind.
+        let ready = self.channel.clone();
+        let mut channel = std::mem::replace(&mut self.channel, ready);
+        let client = self.client.clone();
+
+        Box::pin(async move {
+            let header = client.bearer().await.map_err(|e| {
+                Box::new(Status::unauthenticated(format!(
+                    "failed to obtain IAM token: {e}"
+                ))) as StdError
+            })?;
+            req.headers_mut()
+                .insert(http::header::AUTHORIZATION, header);
+
+            channel.call(req).await.map_err(Into::into)
+        })
     }
 }
 
 impl Client {
     /// Creates new SDK client.
     pub fn new() -> Result<Self, SDKError> {
-        Ok(Self)
+        Ok(Self {
+            inner: Arc::new(Inner {
+                token: AsyncMutex::new(None),
+                channels: Mutex::new(HashMap::new()),
+            }),
+        })
     }
 
-    /// Exchanges service account JWT for IAM token.
+    /// Exchanges service account JWT for a fresh IAM token.
+    ///
+    /// This always performs the exchange. Service clients don't need it: they
+    /// use a cached token that is refreshed automatically.
     pub async fn iam(&self) -> Result<CreateIamTokenResponse, SDKError> {
         let jwt = Claims::new(
             &url::Url::from_str(Endpoints::IAM_AUD)
@@ -84,7 +157,47 @@ impl Client {
         Ok(response)
     }
 
+    /// Returns the `authorization` header value for the current IAM token,
+    /// exchanging a new one first if none is cached or it is about to expire.
+    async fn bearer(&self) -> Result<http::HeaderValue, SDKError> {
+        let mut cached = self.inner.token.lock().await;
+
+        if let Some(token) = cached.as_ref().filter(|t| Instant::now() < t.refresh_at) {
+            return Ok(token.header.clone());
+        }
+
+        let response = self.iam().await?;
+
+        let mut header = http::HeaderValue::from_str(&format!("Bearer {}", response.iam_token))
+            .map_err(|e| SDKError::Config(format!("failed to parse authorization header: {e}")))?;
+        header.set_sensitive(true);
+
+        let lifetime = response
+            .expires_at
+            .and_then(|ts| u64::try_from(ts.seconds).ok())
+            .map(|expires| Duration::from_secs(expires).saturating_sub(unix_now()))
+            .unwrap_or(TOKEN_FALLBACK_TTL);
+
+        *cached = Some(CachedToken {
+            header: header.clone(),
+            refresh_at: Instant::now() + lifetime.saturating_sub(TOKEN_REFRESH_MARGIN),
+        });
+
+        Ok(header)
+    }
+
     async fn api_channel(&self, endpoint: &'static str) -> Result<Channel, SDKError> {
+        let cached = self
+            .inner
+            .channels
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .get(endpoint)
+            .cloned();
+        if let Some(channel) = cached {
+            return Ok(channel);
+        }
+
         let version = env!("CARGO_PKG_VERSION");
         let ep = Endpoint::from_static(endpoint)
             .tls_config(ClientTlsConfig::new().with_enabled_roots())?
@@ -93,90 +206,82 @@ impl Client {
             .user_agent(format!("yandex-cloud-rust-sdk/{version}"))
             .map_err(|e| SDKError::Config(e.to_string()))?;
 
-        Ok(ep.connect().await?)
+        let channel = ep.connect().await?;
+
+        self.inner
+            .channels
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .insert(endpoint, channel.clone());
+
+        Ok(channel)
     }
 
-    async fn interceptor(&self) -> Result<AuthInterceptor, SDKError> {
-        let auth_header = format!("Bearer {}", self.iam().await?.iam_token)
-            .parse()
-            .map_err(|e| SDKError::Config(format!("failed to parse authorization header: {e}")))?;
-
-        Ok(AuthInterceptor { auth_header })
+    async fn auth_channel(&self, endpoint: &'static str) -> Result<AuthChannel, SDKError> {
+        Ok(AuthChannel {
+            channel: self.api_channel(endpoint).await?,
+            client: self.clone(),
+        })
     }
 
-    pub(crate) async fn kms_symmetric_crypto_client(
+    /// Raw KMS symmetric crypto gRPC client, authenticated as this [`Client`].
+    pub async fn kms_symmetric_crypto_client(
         &self,
-    ) -> Result<SymmetricCryptoServiceClient<InterceptedService<Channel, AuthInterceptor>>, SDKError>
-    {
-        let channel = self
-            .api_channel(Endpoints::KMS_CRYPTO_GRPC_ENDPOINT)
-            .await?;
-
-        Ok(SymmetricCryptoServiceClient::with_interceptor(
-            channel,
-            self.interceptor().await?,
+    ) -> Result<SymmetricCryptoServiceClient<AuthChannel>, SDKError> {
+        Ok(SymmetricCryptoServiceClient::new(
+            self.auth_channel(Endpoints::KMS_CRYPTO_GRPC_ENDPOINT)
+                .await?,
         ))
     }
 
-    pub(crate) async fn logging_group_client(
+    /// Raw Logging log group management gRPC client, authenticated as this [`Client`].
+    pub async fn logging_group_client(
         &self,
-    ) -> Result<LogGroupServiceClient<InterceptedService<Channel, AuthInterceptor>>, SDKError> {
-        let channel = self.api_channel(Endpoints::LOGGING_GRPC_ENDPOINT).await?;
-
-        Ok(LogGroupServiceClient::with_interceptor(
-            channel,
-            self.interceptor().await?,
+    ) -> Result<LogGroupServiceClient<AuthChannel>, SDKError> {
+        Ok(LogGroupServiceClient::new(
+            self.auth_channel(Endpoints::LOGGING_GRPC_ENDPOINT).await?,
         ))
     }
 
-    pub(crate) async fn logging_ingestion_client(
+    /// Raw Logging ingestion gRPC client, authenticated as this [`Client`].
+    pub async fn logging_ingestion_client(
         &self,
-    ) -> Result<LogIngestionServiceClient<InterceptedService<Channel, AuthInterceptor>>, SDKError>
-    {
-        let channel = self
-            .api_channel(Endpoints::LOGGING_INGESTION_GRPC_ENDPOINT)
-            .await?;
-
-        Ok(LogIngestionServiceClient::with_interceptor(
-            channel,
-            self.interceptor().await?,
+    ) -> Result<LogIngestionServiceClient<AuthChannel>, SDKError> {
+        Ok(LogIngestionServiceClient::new(
+            self.auth_channel(Endpoints::LOGGING_INGESTION_GRPC_ENDPOINT)
+                .await?,
         ))
     }
 
-    pub(crate) async fn logging_reading_client(
+    /// Raw Logging reading gRPC client, authenticated as this [`Client`].
+    pub async fn logging_reading_client(
         &self,
-    ) -> Result<LogReadingServiceClient<InterceptedService<Channel, AuthInterceptor>>, SDKError>
-    {
-        let channel = self
-            .api_channel(Endpoints::LOGGING_READING_GRPC_ENDPOINT)
-            .await?;
-
-        Ok(LogReadingServiceClient::with_interceptor(
-            channel,
-            self.interceptor().await?,
+    ) -> Result<LogReadingServiceClient<AuthChannel>, SDKError> {
+        Ok(LogReadingServiceClient::new(
+            self.auth_channel(Endpoints::LOGGING_READING_GRPC_ENDPOINT)
+                .await?,
         ))
     }
 
-    pub(crate) async fn ocr_text_recognition_client(
+    /// Raw OCR text recognition gRPC client, authenticated as this [`Client`].
+    pub async fn ocr_text_recognition_client(
         &self,
-    ) -> Result<TextRecognitionServiceClient<InterceptedService<Channel, AuthInterceptor>>, SDKError>
-    {
-        let channel = self.api_channel(Endpoints::OCR_GRPC_ENDPOINT).await?;
-
-        Ok(TextRecognitionServiceClient::with_interceptor(
-            channel,
-            self.interceptor().await?,
+    ) -> Result<TextRecognitionServiceClient<AuthChannel>, SDKError> {
+        Ok(TextRecognitionServiceClient::new(
+            self.auth_channel(Endpoints::OCR_GRPC_ENDPOINT).await?,
         ))
     }
 
-    pub(crate) async fn vision_client(
-        &self,
-    ) -> Result<VisionServiceClient<InterceptedService<Channel, AuthInterceptor>>, SDKError> {
-        let channel = self.api_channel(Endpoints::VISION_GRPC_ENDPOINT).await?;
-
-        Ok(VisionServiceClient::with_interceptor(
-            channel,
-            self.interceptor().await?,
+    /// Raw Vision gRPC client, authenticated as this [`Client`].
+    pub async fn vision_client(&self) -> Result<VisionServiceClient<AuthChannel>, SDKError> {
+        Ok(VisionServiceClient::new(
+            self.auth_channel(Endpoints::VISION_GRPC_ENDPOINT).await?,
         ))
     }
+}
+
+fn unix_now() -> Duration {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
 }
