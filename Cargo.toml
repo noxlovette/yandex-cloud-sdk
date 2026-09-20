@@ -1,6 +1,6 @@
 [package]
 name = "yandex-cloud-sdk"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 rust-version = "1.85"
 authors = ["Danila Volkov <noxlovette@proton.me>"]
@@ -30,7 +30,16 @@ translate = []
 # only speaks gRPC; enable this if you also do HTTP calls and want `?` to convert their errors.
 http = ["dep:reqwest"]
 # Every API in the vendored proto tree. Large: expect a long first compile.
-full = ["kms", "logging", "ocr", "vision", "foundation-models", "stt", "tts", "translate"]
+full = [
+    "kms",
+    "logging",
+    "ocr",
+    "vision",
+    "foundation-models",
+    "stt",
+    "tts",
+    "translate",
+]
 
 [package.metadata.docs.rs]
 all-features = true
