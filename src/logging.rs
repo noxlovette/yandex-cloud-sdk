@@ -4,8 +4,9 @@ use prost_types::Timestamp;
 use crate::{
     Client, SDKError,
     generated::yandex::cloud::logging::v1::{
-        Criteria, Destination, GetLogGroupRequest, IncomingLogEntry, ListLogGroupsRequest,
-        LogGroup, ReadRequest, ReadResponse, WriteRequest, WriteResponse, destination, log_level,
+        Criteria, Destination, GetLogGroupRequest, IncomingLogEntry,
+        ListLogGroupsRequest, LogGroup, ReadRequest, ReadResponse,
+        WriteRequest, WriteResponse, destination, log_level,
     },
 };
 
@@ -20,10 +21,13 @@ fn now_timestamp() -> Timestamp {
 
 impl Client {
     /// Writes log entries using raw logging write request.
-    pub async fn logging_write(&self, request: WriteRequest) -> Result<WriteResponse, SDKError> {
+    pub async fn logging_write(
+        &self,
+        request: WriteRequest,
+    ) -> Result<WriteResponse, SDKError> {
         let mut logging = self.logging_ingestion_client().await?;
 
-        Ok(logging.write(request).await?.into_inner())
+        Ok(logging.write(self.request(request)).await?.into_inner())
     }
 
     /// Writes single text message into log group with current timestamp.
@@ -53,13 +57,16 @@ impl Client {
     }
 
     /// Fetches log group by ID.
-    pub async fn logging_get_group(&self, log_group_id: &str) -> Result<LogGroup, SDKError> {
+    pub async fn logging_get_group(
+        &self,
+        log_group_id: &str,
+    ) -> Result<LogGroup, SDKError> {
         let mut logging = self.logging_group_client().await?;
 
         Ok(logging
-            .get(GetLogGroupRequest {
+            .get(self.request(GetLogGroupRequest {
                 log_group_id: log_group_id.to_string(),
-            })
+            }))
             .await?
             .into_inner())
     }
@@ -71,25 +78,31 @@ impl Client {
         page_size: i64,
         page_token: impl Into<String>,
         filter: impl Into<String>,
-    ) -> Result<crate::generated::yandex::cloud::logging::v1::ListLogGroupsResponse, SDKError> {
+    ) -> Result<
+        crate::generated::yandex::cloud::logging::v1::ListLogGroupsResponse,
+        SDKError,
+    > {
         let mut logging = self.logging_group_client().await?;
 
         Ok(logging
-            .list(ListLogGroupsRequest {
+            .list(self.request(ListLogGroupsRequest {
                 folder_id: folder_id.to_string(),
                 page_size,
                 page_token: page_token.into(),
                 filter: filter.into(),
-            })
+            }))
             .await?
             .into_inner())
     }
 
     /// Reads logs using raw logging read request.
-    pub async fn logging_read(&self, request: ReadRequest) -> Result<ReadResponse, SDKError> {
+    pub async fn logging_read(
+        &self,
+        request: ReadRequest,
+    ) -> Result<ReadResponse, SDKError> {
         let mut logging = self.logging_reading_client().await?;
 
-        Ok(logging.read(request).await?.into_inner())
+        Ok(logging.read(self.request(request)).await?.into_inner())
     }
 
     /// Reads logs from log group with simple criteria request.
@@ -101,18 +114,20 @@ impl Client {
     ) -> Result<ReadResponse, SDKError> {
         self.logging_read(ReadRequest {
             selector: Some(
-                crate::generated::yandex::cloud::logging::v1::read_request::Selector::Criteria(Criteria {
-                    log_group_id: log_group_id.to_string(),
-                    resource_types: Vec::new(),
-                    resource_ids: Vec::new(),
-                    since: None,
-                    until: None,
-                    levels: Vec::new(),
-                    filter: filter.into(),
-                    stream_names: Vec::new(),
-                    page_size,
-                    max_response_size: 0,
-                }),
+                crate::generated::yandex::cloud::logging::v1::read_request::Selector::Criteria(
+                    Criteria {
+                        log_group_id: log_group_id.to_string(),
+                        resource_types: Vec::new(),
+                        resource_ids: Vec::new(),
+                        since: None,
+                        until: None,
+                        levels: Vec::new(),
+                        filter: filter.into(),
+                        stream_names: Vec::new(),
+                        page_size,
+                        max_response_size: 0,
+                    },
+                ),
             ),
         })
         .await

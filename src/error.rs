@@ -3,7 +3,10 @@ use std::str::Utf8Error;
 use thiserror::Error;
 
 /// SDK error type for auth, transport, and decoding failures.
+///
+/// Non-exhaustive: some variants only exist behind cargo features.
 #[derive(Error, Debug)]
+#[non_exhaustive]
 pub enum SDKError {
     /// JWT creation failed.
     #[error("Jwt error")]
@@ -25,7 +28,8 @@ pub enum SDKError {
     #[error("gRPC status error: {0}")]
     GrpcStatus(#[from] tonic::Status),
 
-    /// HTTP client error.
+    /// HTTP client error. Requires the `http` feature.
+    #[cfg(feature = "http")]
     #[error("HTTP error: {0}")]
     Http(#[from] reqwest::Error),
 }

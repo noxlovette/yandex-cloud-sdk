@@ -22,3 +22,12 @@ jobs:
       run: cargo build --verbose
     - name: Run tests
       run: cargo test --verbose
+    - name: Check feature combinations
+      run: |
+        cargo check --features http
+        cargo check --features kms
+        cargo check --features logging
+        cargo check --features ocr
+        cargo check --features vision
+        cargo check --features foundation-models,stt,tts,translate
+        cargo check --all-targets --features full

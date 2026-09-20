@@ -10,7 +10,7 @@
 //!   YANDEX_OCR_MODEL       — model name, "page" or "line" (default: "page")
 //!
 //! Run:
-//!   YANDEX_IMAGE_PATH=photo.jpg cargo run --example ocr
+//!   YANDEX_IMAGE_PATH=photo.jpg cargo run --features ocr --example ocr
 
 use std::{env, fs};
 
@@ -21,13 +21,16 @@ use yandex_cloud_sdk::Client;
 async fn main() -> Result<()> {
     dotenvy::dotenv().ok();
 
-    let image_path = env::var("YANDEX_IMAGE_PATH").context("missing YANDEX_IMAGE_PATH")?;
-    let mime_type = env::var("YANDEX_OCR_MIME_TYPE").unwrap_or_else(|_| "image/jpeg".into());
-    let language = env::var("YANDEX_OCR_LANGUAGE").unwrap_or_else(|_| "ru".into());
+    let image_path =
+        env::var("YANDEX_IMAGE_PATH").context("missing YANDEX_IMAGE_PATH")?;
+    let mime_type = env::var("YANDEX_OCR_MIME_TYPE")
+        .unwrap_or_else(|_| "image/jpeg".into());
+    let language =
+        env::var("YANDEX_OCR_LANGUAGE").unwrap_or_else(|_| "ru".into());
     let model = env::var("YANDEX_OCR_MODEL").unwrap_or_else(|_| "page".into());
 
-    let content =
-        fs::read(&image_path).with_context(|| format!("failed to read image at {image_path}"))?;
+    let content = fs::read(&image_path)
+        .with_context(|| format!("failed to read image at {image_path}"))?;
 
     println!("sending {image_path} ({} bytes) to OCR...", content.len());
 

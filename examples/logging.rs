@@ -6,18 +6,22 @@ use yandex_cloud_sdk::{Client, yandex::cloud::logging::v1::log_level};
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let log_group_id =
-        env::var("YANDEX_LOG_GROUP_ID").context("missing YANDEX_LOG_GROUP_ID env var")?;
+    let log_group_id = env::var("YANDEX_LOG_GROUP_ID")
+        .context("missing YANDEX_LOG_GROUP_ID env var")?;
     let write_message = env::var("YANDEX_LOG_MESSAGE")
         .unwrap_or_else(|_| "hello from yandex-cloud-sdk example".to_string());
-    let read_filter =
-        env::var("YANDEX_LOG_FILTER").unwrap_or_else(|_| format!("message=\"{write_message}\""));
+    let read_filter = env::var("YANDEX_LOG_FILTER")
+        .unwrap_or_else(|_| format!("message=\"{write_message}\""));
 
     let client = Client::new()?;
 
     println!("writing log entry to group {log_group_id}...");
     let write_response = client
-        .logging_write_message(&log_group_id, log_level::Level::Info, write_message.clone())
+        .logging_write_message(
+            &log_group_id,
+            log_level::Level::Info,
+            write_message.clone(),
+        )
         .await?;
     println!("write response: {write_response:#?}");
 

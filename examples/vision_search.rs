@@ -7,7 +7,8 @@
 //!                            leave empty for service-account auth)
 //!
 //! Run:
-//!   YANDEX_IMAGE_PATH=photo.jpg cargo run --example vision_search
+//!   YANDEX_IMAGE_PATH=photo.jpg cargo run --features vision --example
+//! vision_search
 
 use std::{env, fs};
 
@@ -18,11 +19,12 @@ use yandex_cloud_sdk::Client;
 async fn main() -> Result<()> {
     dotenvy::dotenv().ok();
 
-    let image_path = env::var("YANDEX_IMAGE_PATH").context("missing YANDEX_IMAGE_PATH")?;
+    let image_path =
+        env::var("YANDEX_IMAGE_PATH").context("missing YANDEX_IMAGE_PATH")?;
     let folder_id = env::var("YC_FOLDER_ID").unwrap_or_default();
 
-    let content =
-        fs::read(&image_path).with_context(|| format!("failed to read image at {image_path}"))?;
+    let content = fs::read(&image_path)
+        .with_context(|| format!("failed to read image at {image_path}"))?;
 
     println!(
         "searching for copies of {image_path} ({} bytes)...",

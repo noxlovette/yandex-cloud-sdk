@@ -1,8 +1,9 @@
 use crate::{
     Client, SDKError,
     generated::yandex::cloud::ai::vision::v1::{
-        AnalyzeSpec, BatchAnalyzeRequest, BatchAnalyzeResponse, Feature, ImageCopySearchAnnotation,
-        analyze_spec::Source, feature::Type as FeatureType,
+        AnalyzeSpec, BatchAnalyzeRequest, BatchAnalyzeResponse, Feature,
+        ImageCopySearchAnnotation, analyze_spec::Source,
+        feature::Type as FeatureType,
         feature_result::Feature as FeatureVariant,
     },
 };
@@ -14,13 +15,18 @@ impl Client {
         request: BatchAnalyzeRequest,
     ) -> Result<BatchAnalyzeResponse, SDKError> {
         let mut client = self.vision_client().await?;
-        Ok(client.batch_analyze(request).await?.into_inner())
+        Ok(client
+            .batch_analyze(self.request(request))
+            .await?
+            .into_inner())
     }
 
-    /// Searches for web copies of an image using Vision's IMAGE_COPY_SEARCH feature.
+    /// Searches for web copies of an image using Vision's IMAGE_COPY_SEARCH
+    /// feature.
     ///
-    /// `folder_id` is required when authenticating as a user; pass an empty string
-    /// for service-account auth where the folder is inferred from the token.
+    /// `folder_id` is required when authenticating as a user; pass an empty
+    /// string for service-account auth where the folder is inferred from
+    /// the token.
     pub async fn vision_image_copy_search(
         &self,
         content: Vec<u8>,
@@ -40,11 +46,9 @@ impl Client {
             })
             .await?;
 
-        let result = response
-            .results
-            .into_iter()
-            .next()
-            .ok_or_else(|| SDKError::Internal("vision returned no results".into()))?;
+        let result = response.results.into_iter().next().ok_or_else(|| {
+            SDKError::Internal("vision returned no results".into())
+        })?;
 
         if let Some(err) = result.error {
             return Err(SDKError::Internal(format!(
@@ -57,12 +61,18 @@ impl Client {
             .results
             .into_iter()
             .find_map(|r| {
-                if let Some(FeatureVariant::ImageCopySearch(annotation)) = r.feature {
+                if let Some(FeatureVariant::ImageCopySearch(annotation)) =
+                    r.feature
+                {
                     Some(annotation)
                 } else {
                     None
                 }
             })
-            .ok_or_else(|| SDKError::Internal("no image copy search result in response".into()))
+            .ok_or_else(|| {
+                SDKError::Internal(
+                    "no image copy search result in response".into(),
+                )
+            })
     }
 }
